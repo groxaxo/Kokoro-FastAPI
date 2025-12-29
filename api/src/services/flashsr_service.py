@@ -1,5 +1,6 @@
 """FlashSR audio super-resolution service for upsampling 24kHz to 48kHz."""
 
+import asyncio
 import os
 from pathlib import Path
 from typing import Optional
@@ -20,6 +21,7 @@ class FlashSRService:
     _instance: Optional["FlashSRService"] = None
     _model = None
     _device = None
+    _init_lock = asyncio.Lock()
 
     def __init__(self):
         """Initialize FlashSR service."""
@@ -29,17 +31,25 @@ class FlashSRService:
 
     @classmethod
     async def get_instance(cls) -> "FlashSRService":
-        """Get singleton instance of FlashSR service."""
+        """Get singleton instance of FlashSR service (thread-safe)."""
         if cls._instance is None:
-            cls._instance = cls()
-            await cls._instance.initialize()
+            async with cls._init_lock:
+                # Double-check after acquiring lock
+                if cls._instance is None:
+                    cls._instance = cls()
+                    await cls._instance.initialize()
         return cls._instance
 
     async def initialize(self):
         """Initialize the FlashSR model."""
         try:
-            # Set device
-            self.device = torch.device(settings.get_device())
+            # Set device with validation
+            device_str = settings.get_device()
+            if device_str not in ["cpu", "cuda", "mps"]:
+                logger.warning(f"Invalid device '{device_str}', falling back to CPU")
+                device_str = "cpu"
+            
+            self.device = torch.device(device_str)
             logger.info(f"Initializing FlashSR service on device: {self.device}")
 
             # Download model from HuggingFace Hub
@@ -95,7 +105,7 @@ class FlashSRService:
         try:
             # Convert to float32 if needed
             if audio_data.dtype == np.int16:
-                audio_float = audio_data.astype(np.float32) / 32768.0
+                audio_float = audio_data.astype(np.float32) / 32767.0
             else:
                 audio_float = audio_data.astype(np.float32)
 
@@ -147,15 +157,19 @@ class FlashSRService:
 
 # Global instance accessor
 _flashsr_service: Optional[FlashSRService] = None
+_service_lock = asyncio.Lock()
 
 
 async def get_flashsr_service() -> Optional[FlashSRService]:
-    """Get the global FlashSR service instance."""
+    """Get the global FlashSR service instance (thread-safe)."""
     global _flashsr_service
     if _flashsr_service is None:
-        try:
-            _flashsr_service = await FlashSRService.get_instance()
-        except Exception as e:
-            logger.warning(f"FlashSR service not available: {e}")
-            return None
+        async with _service_lock:
+            # Double-check after acquiring lock
+            if _flashsr_service is None:
+                try:
+                    _flashsr_service = await FlashSRService.get_instance()
+                except Exception as e:
+                    logger.warning(f"FlashSR service not available: {e}")
+                    return None
     return _flashsr_service

@@ -106,7 +106,7 @@ async def test_flashsr_upsample_audio(sample_audio_24k, mock_flashsr_model):
 
             # Test upsampling
             # Convert int16 to float32
-            audio_int16 = (audio * 32768.0).astype(np.int16)
+            audio_int16 = (np.clip(audio, -1.0, 1.0) * 32767.0).astype(np.int16)
             upsampled = service.upsample_audio(audio_int16, sample_rate)
 
             # Verify output
@@ -126,7 +126,7 @@ async def test_flashsr_error_handling(sample_audio_24k):
     service = FlashSRService()
 
     # Test upsampling without initialized model
-    audio_int16 = (audio * 32768.0).astype(np.int16)
+    audio_int16 = (np.clip(audio, -1.0, 1.0) * 32767.0).astype(np.int16)
     result = service.upsample_audio(audio_int16, sample_rate)
 
     # Should return original audio on error

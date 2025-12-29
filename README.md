@@ -515,7 +515,7 @@ FlashSR provides ultra-fast audio super-resolution, upsampling 24kHz audio to 48
 
 **Configuration:**
 
-FlashSR can be controlled via environment variables:
+FlashSR can be controlled via environment variables. The server uses Pydantic Settings which automatically maps environment variables to configuration settings:
 
 ```bash
 # Disable FlashSR (use original 24kHz output)
@@ -523,11 +523,19 @@ export ENABLE_FLASHSR=false
 
 # Or enable it (default)
 export ENABLE_FLASHSR=true
+
+# The environment variable name is automatically mapped from the config setting 'enable_flashsr'
+# All Pydantic settings support environment variable configuration
 ```
 
 **Docker:**
 ```bash
+# Disable FlashSR in Docker
 docker run --env 'ENABLE_FLASHSR=false' ...
+
+# Or via docker-compose.yml:
+# environment:
+#   - ENABLE_FLASHSR=false
 ```
 
 **How it works:**

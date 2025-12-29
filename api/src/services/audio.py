@@ -188,13 +188,14 @@ class AudioService:
                     flashsr_service = await get_flashsr_service()
                     if flashsr_service and flashsr_service.is_available():
                         # Convert int16 to float32 for FlashSR
-                        audio_float = audio_chunk.audio.astype(np.float32) / 32768.0
+                        audio_float = audio_chunk.audio.astype(np.float32) / 32767.0
                         # Upsample using FlashSR
                         upsampled = flashsr_service.upsample_audio(
                             audio_float, input_sample_rate=settings.sample_rate
                         )
-                        # Convert back to int16
-                        audio_chunk.audio = (upsampled * 32768.0).astype(np.int16)
+                        # Convert back to int16 with proper clamping
+                        upsampled_clamped = np.clip(upsampled, -1.0, 1.0)
+                        audio_chunk.audio = (upsampled_clamped * 32767.0).astype(np.int16)
                         logger.debug(
                             f"Applied FlashSR super-resolution: {settings.sample_rate}Hz -> 48kHz"
                         )
