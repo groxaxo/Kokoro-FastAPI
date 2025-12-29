@@ -13,6 +13,7 @@ export class App {
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
             generateBtnLoader: document.querySelector('#generate-btn .loader'),
             downloadBtn: document.getElementById('download-btn'),
+            copyTextBtn: document.getElementById('copy-text-btn'),
             autoplayToggle: document.getElementById('autoplay-toggle'),
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
@@ -32,7 +33,7 @@ export class App {
         this.playerControls = new PlayerControls(this.audioService, this.playerState);
         this.voiceSelector = new VoiceSelector(this.voiceService);
         this.waveVisualizer = new WaveVisualizer(this.playerState);
-        
+
         // Initialize text editor
         const editorContainer = document.getElementById('text-editor');
         this.textEditor = new TextEditor(editorContainer, {
@@ -61,6 +62,9 @@ export class App {
 
         // Download button
         this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
+
+        // Copy text button
+        this.elements.copyTextBtn.addEventListener('click', () => this.copyText());
 
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {
@@ -92,10 +96,10 @@ export class App {
         // Handle completion
         this.audioService.addEventListener('complete', () => {
             this.setGenerating(false);
-            
+
             // Show preparing status
             this.showStatus('Preparing file...', 'info');
-            
+
             // Trigger coffee steam animation
             const steamElement = document.querySelector('.cup .steam');
             if (steamElement) {
@@ -150,12 +154,12 @@ export class App {
             this.showStatus('Please enter some text', 'error');
             return false;
         }
-        
+
         if (!this.voiceService.hasSelectedVoices()) {
             this.showStatus('Please select a voice', 'error');
             return false;
         }
-        
+
         return true;
     }
 
@@ -174,16 +178,16 @@ export class App {
 
         // Just reset progress bar, don't do full cleanup
         this.waveVisualizer.updateProgress(0, 1);
-        
+
         try {
             console.log('Starting audio generation...', { text, voice, speed });
-            
+
             // Ensure we have valid input
             if (!text || !voice) {
                 console.error('Invalid input:', { text, voice, speed });
                 throw new Error('Invalid input parameters');
             }
-            
+
             await this.audioService.streamAudio(
                 text,
                 voice,
@@ -210,17 +214,36 @@ export class App {
         }
 
         console.log('Starting download from:', downloadUrl);
-        
+
         const format = this.elements.formatSelect.value;
         const voice = this.voiceService.getSelectedVoiceString();
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        
+
         const a = document.createElement('a');
         a.href = downloadUrl;
         a.download = `${voice}_${timestamp}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    }
+
+    copyText() {
+        const text = this.textEditor.getText().trim();
+        if (!text) {
+            this.showStatus('No text to copy', 'error');
+            return;
+        }
+
+        navigator.clipboard.writeText(text).then(() => {
+            this.showStatus('Text copied to clipboard!', 'success');
+            this.elements.copyTextBtn.classList.add('copied');
+            setTimeout(() => {
+                this.elements.copyTextBtn.classList.remove('copied');
+            }, 1500);
+        }).catch(err => {
+            console.error('Failed to copy text:', err);
+            this.showStatus('Failed to copy text', 'error');
+        });
     }
 }
 

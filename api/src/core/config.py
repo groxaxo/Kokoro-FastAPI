@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     default_voice_code: str | None = (
         None  # If set, overrides the first letter of voice name, though api call param still takes precedence
     )
-    use_gpu: bool = True  # Whether to use GPU acceleration if available
+    use_gpu: bool = False  # Whether to use GPU acceleration if available
     device_type: str | None = (
-        None  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
+        "cpu"  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
     )
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally

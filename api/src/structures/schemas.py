@@ -85,11 +85,11 @@ class OpenAISpeechRequest(BaseModel):
         default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
     )
-    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
-        default="mp3",
-        description="The format to return audio in. Supported formats: mp3, opus, flac, wav, pcm. PCM format returns raw 16-bit samples without headers. AAC is not currently supported.",
+    response_format: Literal["opus", "mp3"] = Field(
+        default="opus",
+        description="The format to return audio in. Supported formats: opus, mp3.",
     )
-    download_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = (
+    download_format: Optional[Literal["opus", "mp3"]] = (
         Field(
             default=None,
             description="Optional different format for the final download. If not provided, uses response_format.",
@@ -135,9 +135,9 @@ class CaptionedSpeechRequest(BaseModel):
         default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
     )
-    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
-        default="mp3",
-        description="The format to return audio in. Supported formats: mp3, opus, flac, wav, pcm. PCM format returns raw 16-bit samples without headers. AAC is not currently supported.",
+    response_format: Literal["opus", "mp3"] = Field(
+        default="opus",
+        description="The format to return audio in. Supported formats: opus, mp3.",
     )
     speed: float = Field(
         default=1.0,

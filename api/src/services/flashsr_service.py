@@ -1,4 +1,4 @@
-"""FlashSR audio super-resolution service for upsampling 24kHz to 48kHz."""
+"""FlashSR audio super-resolution service for upsampling 24kHz to 48kHz using ONNX."""
 
 import asyncio
 import os
@@ -8,7 +8,7 @@ from typing import Optional
 import librosa
 import numpy as np
 import soundfile as sf
-import torch
+import onnxruntime as ort
 from huggingface_hub import hf_hub_download
 from loguru import logger
 
@@ -16,18 +16,16 @@ from ..core.config import settings
 
 
 class FlashSRService:
-    """Service for audio super-resolution using FlashSR model."""
+    """Service for audio super-resolution using FlashSR ONNX model."""
 
     _instance: Optional["FlashSRService"] = None
-    _model = None
-    _device = None
+    _session: Optional[ort.InferenceSession] = None
     _init_lock = asyncio.Lock()
 
     def __init__(self):
         """Initialize FlashSR service."""
         self.model_path = None
-        self.model = None
-        self.device = None
+        self.session = None
 
     @classmethod
     async def get_instance(cls) -> "FlashSRService":
@@ -41,16 +39,9 @@ class FlashSRService:
         return cls._instance
 
     async def initialize(self):
-        """Initialize the FlashSR model."""
+        """Initialize the FlashSR ONNX model."""
         try:
-            # Set device with validation
-            device_str = settings.get_device()
-            if device_str not in ["cpu", "cuda", "mps"]:
-                logger.warning(f"Invalid device '{device_str}', falling back to CPU")
-                device_str = "cpu"
-            
-            self.device = torch.device(device_str)
-            logger.info(f"Initializing FlashSR service on device: {self.device}")
+            logger.info("Initializing FlashSR service (ONNX)...")
 
             # Download model from HuggingFace Hub
             model_dir = Path(settings.model_dir) / "flashsr"
@@ -58,101 +49,113 @@ class FlashSRService:
 
             self.model_path = hf_hub_download(
                 repo_id="YatharthS/FlashSR",
-                filename="upsampler.pth",
+                filename="model.onnx",
+                subfolder="onnx",
                 local_dir=str(model_dir),
             )
 
-            logger.info(f"FlashSR model downloaded to: {self.model_path}")
+            logger.info(f"FlashSR ONNX model downloaded to: {self.model_path}")
 
-            # Import FlashSR model class
-            from .flashsr import FASR
-
-            # Load model
-            self.model = FASR(self.model_path)
-            self.model.model = self.model.model.to(self.device)
-
-            # Use half precision on GPU for faster inference
-            if self.device.type == "cuda":
-                self.model.model = self.model.model.half()
-                logger.info("FlashSR model loaded with half precision (FP16)")
-            else:
-                logger.info("FlashSR model loaded with full precision (FP32)")
-
-            self.model.model.eval()
-            logger.info("FlashSR service initialized successfully")
+            # Create ONNX session
+            # We can configure providers here if needed, e.g., ['CUDAExecutionProvider', 'CPUExecutionProvider']
+            # For now, let's let onnxruntime decide or prioritize CPU if that's the goal for "running fast and furiously" on edge 
+            # (though the prompt mentioned "instead of running on gpu", often onnx on cpu is what is meant for "edge" ease, 
+            # but user also said "runs on onnx instead of running on gpu". 
+            # I will include CPUExecutionProvider as the primary since the user asked to run "instead of gpu".
+            providers = ["CPUExecutionProvider"]
+            
+            # If user wants it explicitly NOT on GPU, we stick to CPUProvider. 
+            # However, if 'fast and furiously' implies speed, maybe they just meant the ONNX speedup?
+            # The prompt says "runs on onnx instead of running on gpu". 
+            # I will stick to the default behavior or CPU to be safe given the prompt phrasing.
+            # Actually, standard ONNX usage usually defaults to available providers. 
+            # But to strictly follow "instead of running on gpu", I should probably prefer CPU. 
+            # Although, usually "edge devices" might have NPUs. 
+            # Let's go with default providers which usually falls back to CPU if no GPU or if configured.
+            # But to be safe and explicit about INTENT of "instead of gpu":
+            
+            self.session = ort.InferenceSession(self.model_path, providers=providers)
+            
+            logger.info(f"FlashSR ONNX service initialized successfully with providers: {self.session.get_providers()}")
 
         except Exception as e:
             logger.error(f"Failed to initialize FlashSR service: {e}")
             raise
 
-    def upsample_audio(
-        self, audio_data: np.ndarray, input_sample_rate: int = 24000
-    ) -> np.ndarray:
-        """
-        Upsample audio from 24kHz to 48kHz using FlashSR.
-
-        Args:
-            audio_data: Input audio data as numpy array (int16 or float32)
-            input_sample_rate: Sample rate of input audio (default: 24000)
-
-        Returns:
-            Upsampled audio data at 48kHz as numpy array (float32)
-        """
-        if self.model is None:
+    def upsample_audio(self, audio_data: np.ndarray, input_sample_rate: int = 24000) -> np.ndarray:
+        """Upsample audio using FlashSR ONNX model, processing in chunks if necessary."""
+        if not self.is_available():
             logger.warning("FlashSR model not initialized, returning original audio")
             return audio_data
 
         try:
-            # Convert to float32 if needed
-            if audio_data.dtype == np.int16:
-                audio_float = audio_data.astype(np.float32) / 32767.0
-            else:
-                audio_float = audio_data.astype(np.float32)
-
-            # FlashSR expects 16kHz input, so we need to resample 24kHz -> 16kHz first
-            if input_sample_rate != 16000:
-                audio_16k = librosa.resample(
-                    audio_float, orig_sr=input_sample_rate, target_sr=16000
-                )
-            else:
-                audio_16k = audio_float
-
-            # Convert to torch tensor
-            audio_tensor = torch.from_numpy(audio_16k).unsqueeze(0)
-
-            # Use half precision on GPU
-            if self.device.type == "cuda":
-                audio_tensor = audio_tensor.half()
-
-            audio_tensor = audio_tensor.to(self.device)
-
-            # Run super-resolution
-            with torch.no_grad():
-                upsampled_audio = self.model.run(audio_tensor)
-
-            # Convert back to numpy
-            if isinstance(upsampled_audio, torch.Tensor):
-                upsampled_audio = upsampled_audio.cpu().float().numpy()
-
-            # Ensure correct shape (remove batch dimension if present)
-            if upsampled_audio.ndim > 1:
-                upsampled_audio = upsampled_audio.squeeze()
+            # Process in chunks of ~5 seconds to avoid sequence length limits
+            # 5s @ 24kHz = 120,000 samples
+            chunk_size_samples = 5 * input_sample_rate
+            
+            if len(audio_data) <= chunk_size_samples:
+                return self._upsample_segment(audio_data, input_sample_rate)
+            
+            # Split into chunks
+            upsampled_chunks = []
+            for i in range(0, len(audio_data), chunk_size_samples):
+                segment = audio_data[i : i + chunk_size_samples]
+                if len(segment) < 1000: # Skip tiny segments
+                    continue
+                upsampled_segment = self._upsample_segment(segment, input_sample_rate)
+                upsampled_chunks.append(upsampled_segment)
+            
+            # Concatenate all upsampled chunks
+            upsampled_full_audio = np.concatenate(upsampled_chunks)
 
             logger.debug(
                 f"Audio upsampled from {input_sample_rate}Hz to 48kHz "
-                f"(shape: {audio_data.shape} -> {upsampled_audio.shape})"
+                f"(shape: {audio_data.shape} -> {upsampled_full_audio.shape})"
             )
-
-            return upsampled_audio
+            
+            return upsampled_full_audio
 
         except Exception as e:
-            logger.error(f"Error during audio upsampling: {e}")
-            # Return original audio on error
+            logger.error(f"FlashSR upsampling failed: {e}")
             return audio_data
+
+    def _upsample_segment(self, audio_data: np.ndarray, input_sample_rate: int) -> np.ndarray:
+        """Upsample a single segment of audio."""
+        # Convert to float32 if needed
+        if audio_data.dtype == np.int16:
+            audio_float = audio_data.astype(np.float32) / 32767.0
+        else:
+            audio_float = audio_data.astype(np.float32)
+
+        # FlashSR expects 16kHz input, so we need to resample 24kHz -> 16kHz first
+        if input_sample_rate != 16000:
+            audio_16k = librosa.resample(
+                audio_float, orig_sr=input_sample_rate, target_sr=16000
+            )
+        else:
+            audio_16k = audio_float
+
+        # logger.debug(f"FlashSR input shape (16kHz): {audio_16k.shape}")
+
+        # Add batch dimension: (1, samples)
+        lowres_wav = audio_16k[np.newaxis, :]
+
+        # Run inference
+        onnx_output = self.session.run(
+            ["reconstruction"], 
+            {"audio_values": lowres_wav}
+        )[0]
+
+        # Output is (1, samples), squeeze to (samples,)
+        upsampled_audio = onnx_output.squeeze(0)
+        
+        # logger.debug(f"FlashSR output shape (48kHz): {upsampled_audio.shape}")
+        
+        return upsampled_audio
 
     def is_available(self) -> bool:
         """Check if FlashSR service is available."""
-        return self.model is not None
+        return self.session is not None
 
 
 # Global instance accessor

@@ -43,14 +43,13 @@ dependencies = [
     # Audio super-resolution
     "librosa>=0.10.0",
     "huggingface-hub>=0.20.0",
+    "onnxruntime>=1.15.0",
     "einops>=0.7.0",
     "soxr>=0.3.0",
     "timm>=0.6.13",
 ]
 
 [project.optional-dependencies]
-gpu = ["torch==2.8.0+cu129"]
-cpu = ["torch==2.8.0"]
 test = [
     "pytest==8.3.5",
     "pytest-cov==6.0.0",
@@ -60,29 +59,14 @@ test = [
     "jinja2>=3.1.6",
 ]
 
-[tool.uv]
-conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
-required-environments = [
-    "sys_platform == 'linux' and platform_machine == 'aarch64'"
-]
-override-dependencies = [
-    "triton>=3.5.1 ; platform_machine == 'aarch64'"
-]
-
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cuda", extra = "gpu" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[[tool.uv.index]]
-name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 [build-system]

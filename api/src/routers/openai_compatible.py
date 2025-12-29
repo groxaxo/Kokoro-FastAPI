@@ -316,6 +316,7 @@ async def create_speech(
                 writer,
                 is_last_chunk=False,
                 trim_audio=False,
+                apply_flashsr=settings.enable_flashsr,
             )
 
             # Convert to requested format with proper finalization
@@ -324,6 +325,7 @@ async def create_speech(
                 request.response_format,
                 writer,
                 is_last_chunk=True,
+                apply_flashsr=settings.enable_flashsr,
             )
             output = audio_data.output + final.output
 

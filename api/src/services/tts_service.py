@@ -352,7 +352,9 @@ class TTSService:
                             # Update offset based on the actual duration of the generated audio chunk
                             chunk_duration = 0
                             if chunk_data.audio is not None and len(chunk_data.audio) > 0:
-                                chunk_duration = len(chunk_data.audio) / 24000
+                                # Use dynamic sample rate check instead of hardcoded 24000
+                                current_sr = 48000 if settings.enable_flashsr and output_format else 24000
+                                chunk_duration = len(chunk_data.audio) / current_sr
                                 current_offset += chunk_duration
 
                             # Yield the processed chunk (either formatted or raw)

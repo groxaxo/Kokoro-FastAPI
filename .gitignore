@@ -1,75 +1,61 @@
-# Version control
-.git
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
 *.py[cod]
 *$py.class
-.Python
-.pytest_cache
-.coverage
-.coveragerc
-
-# Python package build artifacts
-*.egg-info/
-*.egg
-dist/
-build/
-*.onnx
-*.pth
-# Environment
-# .env
+*.so
 .venv/
-env/
 venv/
-ENV/
+env/
+.env
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# IDE
-.idea/
+# Models (too large for GitHub)
+api/src/models/v1_0/*.pth
+api/src/models/flashsr/onnx/*.onnx
+
+# Data & Temp
+api/temp_files/*
+output/*
+examples/audio_samples/*.opus
+!examples/audio_samples/english_benefits_48khz.opus
+!examples/audio_samples/spanish_benefits_48khz.opus
+!examples/audio_samples/english_benefits_24khz.opus
+!examples/audio_samples/spanish_benefits_24khz.opus
+!examples/audio_samples/english_technical_48khz.opus
+!examples/audio_samples/english_technical_24khz.opus
+!examples/audio_samples/english_jokes_48khz.opus
+!examples/audio_samples/english_jokes_24khz.opus
+!examples/audio_samples/spanish_jokes_48khz.opus
+!examples/audio_samples/spanish_jokes_24khz.opus
+
+# Logs
+*.log
+server.log
+
+# IDEs
 .vscode/
+.idea/
 *.swp
 *.swo
 
 # Project specific
-# Model files
-
-*.pth
-*.tar*
-
-
-# Other project files
-.env
-Kokoro-82M/
-ui/data/
-EXTERNAL_UV_DOCUMENTATION*
-app
-api/temp_files/
-
-# Docker
-Dockerfile*
-docker-compose*
-examples/ebook_test/chapter_to_audio.py
-examples/ebook_test/chapters_to_audio.py
-examples/ebook_test/parse_epub.py
-api/src/voices/af_jadzia.pt
-examples/assorted_checks/test_combinations/output/*
-examples/assorted_checks/test_openai/output/*
-
-
-# Audio files
-examples/*.wav
-examples/*.pcm
-examples/*.mp3
-examples/*.flac
-examples/*.acc
-examples/*.ogg
-examples/speech.mp3
-examples/phoneme_examples/output/*.wav
-examples/assorted_checks/benchmarks/output_audio/*
-uv.lock
-
-# Mac MPS virtualenv for dual testing
-.venv-mps
+test_outputs/
+test_debug.opus
+benchmark_output.opus
+start_server_custom.sh.bak
