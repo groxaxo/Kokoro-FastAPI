@@ -15,6 +15,8 @@ def mock_settings():
     """Mock settings for all tests"""
     with patch("api.src.services.audio.settings") as mock_settings:
         mock_settings.gap_trim_ms = 250
+        mock_settings.sample_rate = 24000
+        mock_settings.enable_flashsr = False  # Disable FlashSR for tests
         yield mock_settings
 
 

@@ -15,6 +15,7 @@
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - Multi-language support (English, Japanese, Chinese, _Vietnamese soon_)
 - OpenAI-compatible Speech endpoint, NVIDIA GPU accelerated or CPU inference with PyTorch 
+- **NEW: FlashSR Audio Super-Resolution** - Ultra-fast 24kHz→48kHz upsampling (200-400x realtime)
 - ONNX support coming soon, see v0.1.5 and earlier for legacy ONNX support in the interim
 - Debug endpoints for monitoring system stats, integrated web UI on localhost:8880/web
 - Phoneme-based audio generation, phoneme generation
@@ -498,6 +499,63 @@ except Exception as e:
 ```
 
 See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
+</details>
+
+<details>
+<summary>FlashSR Audio Super-Resolution</summary>
+
+FlashSR provides ultra-fast audio super-resolution, upsampling 24kHz audio to 48kHz at 200-400x realtime speed.
+
+**Features:**
+- Automatic upsampling from 24kHz to 48kHz
+- Extremely lightweight (2MB model)
+- Fast inference (200-400x realtime)
+- Based on [YatharthS/FlashSR](https://huggingface.co/YatharthS/FlashSR)
+- Enabled by default
+
+**Configuration:**
+
+FlashSR can be controlled via environment variables. The server uses Pydantic Settings which automatically maps environment variables to configuration settings:
+
+```bash
+# Disable FlashSR (use original 24kHz output)
+export ENABLE_FLASHSR=false
+
+# Or enable it (default)
+export ENABLE_FLASHSR=true
+
+# The environment variable name is automatically mapped from the config setting 'enable_flashsr'
+# All Pydantic settings support environment variable configuration
+```
+
+**Docker:**
+```bash
+# Disable FlashSR in Docker
+docker run --env 'ENABLE_FLASHSR=false' ...
+
+# Or via docker-compose.yml:
+# environment:
+#   - ENABLE_FLASHSR=false
+```
+
+**How it works:**
+
+The Kokoro model generates audio at 24kHz. FlashSR automatically:
+1. Resamples to 16kHz (FlashSR input requirement)
+2. Applies super-resolution to reconstruct high-frequency components
+3. Outputs crystal-clear 48kHz audio
+
+This happens transparently - all API endpoints automatically return 48kHz audio when FlashSR is enabled.
+
+**Performance:**
+- Model size: ~2MB
+- Speed: 200-400x realtime (depending on hardware)
+- Quality: Competitive with much larger models (Resemble-Enhance, ClearerVoice)
+
+**Technical Details:**
+
+FlashSR uses a neural architecture derived from HierSpeech++ for fast audio super-resolution. The model is automatically downloaded from HuggingFace Hub on first startup and cached locally.
+
 </details>
 
 <details>

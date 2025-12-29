@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI):
     from .inference.model_manager import get_manager
     from .inference.voice_manager import get_manager as get_voice_manager
     from .services.temp_manager import cleanup_temp_files
+    from .services.flashsr_service import get_flashsr_service
 
     # Clean old temp files on startup
     await cleanup_temp_files()
@@ -70,6 +71,22 @@ async def lifespan(app: FastAPI):
         device, model, voicepack_count = await model_manager.initialize_with_warmup(
             voice_manager
         )
+
+        # Initialize FlashSR if enabled
+        flashsr_status = "disabled"
+        if settings.enable_flashsr:
+            try:
+                logger.info("Initializing FlashSR audio super-resolution...")
+                flashsr_service = await get_flashsr_service()
+                if flashsr_service and flashsr_service.is_available():
+                    flashsr_status = f"enabled (24kHz -> 48kHz)"
+                    logger.info("FlashSR initialized successfully")
+                else:
+                    flashsr_status = "initialization failed"
+                    logger.warning("FlashSR initialization failed")
+            except Exception as e:
+                flashsr_status = f"error: {str(e)}"
+                logger.error(f"Failed to initialize FlashSR: {e}")
 
     except Exception as e:
         logger.error(f"Failed to initialize model: {e}")
@@ -97,6 +114,7 @@ async def lifespan(app: FastAPI):
     else:
         startup_msg += "\nRunning on CPU"
     startup_msg += f"\n{voicepack_count} voice packs loaded"
+    startup_msg += f"\nFlashSR Audio Super-Resolution: {flashsr_status}"
 
     # Add web player info if enabled
     if settings.enable_web_player:

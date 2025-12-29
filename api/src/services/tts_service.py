@@ -113,6 +113,7 @@ class TTSService:
                                     chunk_text,
                                     is_last_chunk=is_last,
                                     normalizer=normalizer,
+                                    apply_flashsr=settings.enable_flashsr,
                                 )
                                 yield chunk_data
                             except Exception as e:
@@ -156,6 +157,7 @@ class TTSService:
                                 chunk_text,
                                 normalizer=normalizer,
                                 is_last_chunk=is_last,
+                                apply_flashsr=settings.enable_flashsr,
                             )
                             yield chunk_data
                         except Exception as e:
