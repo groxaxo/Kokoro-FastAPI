@@ -145,6 +145,7 @@ class AudioService:
         is_last_chunk: bool = False,
         trim_audio: bool = True,
         normalizer: AudioNormalizer = None,
+        apply_flashsr: bool = False,
     ) -> AudioChunk:
         """Convert audio data to specified format with streaming support
 
@@ -157,6 +158,7 @@ class AudioService:
             is_last_chunk: Whether this is the last chunk
             trim_audio: Whether audio should be trimmed
             normalizer: Optional AudioNormalizer instance for consistent normalization
+            apply_flashsr: Whether to apply FlashSR super-resolution
 
         Returns:
             Bytes of the converted audio chunk
@@ -177,6 +179,27 @@ class AudioService:
                 audio_chunk = AudioService.trim_audio(
                     audio_chunk, chunk_text, speed, is_last_chunk, normalizer
                 )
+
+            # Apply FlashSR super-resolution if enabled
+            if apply_flashsr and len(audio_chunk.audio) > 0:
+                try:
+                    from .flashsr_service import get_flashsr_service
+
+                    flashsr_service = await get_flashsr_service()
+                    if flashsr_service and flashsr_service.is_available():
+                        # Convert int16 to float32 for FlashSR
+                        audio_float = audio_chunk.audio.astype(np.float32) / 32768.0
+                        # Upsample using FlashSR
+                        upsampled = flashsr_service.upsample_audio(
+                            audio_float, input_sample_rate=settings.sample_rate
+                        )
+                        # Convert back to int16
+                        audio_chunk.audio = (upsampled * 32768.0).astype(np.int16)
+                        logger.debug(
+                            f"Applied FlashSR super-resolution: {settings.sample_rate}Hz -> 48kHz"
+                        )
+                except Exception as e:
+                    logger.warning(f"FlashSR processing failed, using original audio: {e}")
 
             # Write audio data first
             if len(audio_chunk.audio) > 0:

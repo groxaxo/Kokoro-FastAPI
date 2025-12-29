@@ -204,7 +204,11 @@ async def create_speech(
             "pcm": "audio/pcm",
         }.get(request.response_format, f"audio/{request.response_format}")
 
-        writer = StreamingAudioWriter(request.response_format, sample_rate=24000)
+        # Determine sample rate based on FlashSR setting
+        output_sample_rate = (
+            settings.flashsr_output_sample_rate if settings.enable_flashsr else settings.sample_rate
+        )
+        writer = StreamingAudioWriter(request.response_format, sample_rate=output_sample_rate)
 
         # Check if streaming is requested (default for OpenAI client)
         if request.stream:
