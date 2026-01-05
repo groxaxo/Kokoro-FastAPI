@@ -1224,7 +1224,7 @@ Convierte URLs a formato pronunciable.
 # Salida:   "Revisa www prueba dot org question-mark q equals buscar"
 
 # Entrada:  "API en localhost:8080/api"
-# Salida:   "API en localhost colon ochenta ochenta slash api"
+# Salida:   "API en localhost colon eighty eighty slash api"
 ```
 
 **Patrón de Implementación**:
@@ -1331,7 +1331,15 @@ Convierte valores numéricos a palabras escritas.
 # Salida:   "Temperatura: minus five grados"
 ```
 
-**Nota**: El sistema actualmente convierte números a palabras en inglés. Para soporte completo en español, se necesitaría implementar un módulo de conversión de números en español.
+**Nota**: El sistema actualmente convierte números a palabras en inglés. Para soporte completo en español, se necesitaría implementar un módulo de conversión de números en español. Bibliotecas como [`num2words`](https://pypi.org/project/num2words/) soportan conversión de números a palabras en español:
+
+```python
+from num2words import num2words
+
+# Ejemplo de conversión en español
+num2words(1035, lang='es')  # 'mil treinta y cinco'
+num2words(50.30, lang='es') # 'cincuenta punto tres cero'
+```
 
 ---
 
@@ -1728,7 +1736,7 @@ opciones = NormalizationOptions(
 
 **Salida**:
 ```
-Visita https api dot ejemplo dot com colon ochenta ochenta slash docs para documentación.
+Visita https api dot ejemplo dot com colon eighty eighty slash docs para documentación.
 Contacta soporte at ejemplo dot com si necesitas ayuda.
 La API procesa one point five thousand solicitudes slash seg con ninety-nine point nine percent tiempo activo.
 ```
