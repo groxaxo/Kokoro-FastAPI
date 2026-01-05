@@ -1243,10 +1243,16 @@ def handle_url(match):
                  lambda m: "https " if "https" in m.group() else "http ",
                  url)
     
+    # Dividir en dominio y ruta
+    parts = url.split("/", 1)
+    domain = parts[0]
+    path = parts[1] if len(parts) > 1 else ""
+    
     # Manejar puntos del dominio
     domain = domain.replace(".", " dot ")
     
-    # Manejar caracteres especiales
+    # Reconstruir y manejar caracteres especiales
+    url = f"{domain} slash {path}" if path else domain
     url = url.replace("?", " question-mark ")
     url = url.replace("=", " equals ")
     
