@@ -150,10 +150,16 @@ def handle_url(match):
                  lambda m: "https " if "https" in m.group() else "http ",
                  url)
     
+    # Split into domain and path
+    parts = url.split("/", 1)
+    domain = parts[0]
+    path = parts[1] if len(parts) > 1 else ""
+    
     # Handle domain dots
     domain = domain.replace(".", " dot ")
     
-    # Handle special characters
+    # Reconstruct and handle special characters
+    url = f"{domain} slash {path}" if path else domain
     url = url.replace("?", " question-mark ")
     url = url.replace("=", " equals ")
     
