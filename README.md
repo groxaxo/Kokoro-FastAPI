@@ -133,6 +133,12 @@ Access a modern, sleek web interface at `http://localhost:8880/web/` to test voi
 
 ---
 
+## 📚 Documentation
+
+- **[Text Sanitization Guide](docs/TEXT_SANITIZATION_GUIDE.md)** - Comprehensive bilingual (English/Spanish) guide on text sanitization and normalization strategies. Perfect for adapting these techniques to your own projects.
+
+---
+
 ## 🛠️ Credits & License
 
 - **Model**: [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) by HexGrad
