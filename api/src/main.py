@@ -7,17 +7,18 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import torch
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
 
 from .core.config import settings
-from .routers.debug import router as debug_router
-from .routers.development import router as dev_router
-from .routers.openai_compatible import router as openai_router
-from .routers.web_player import router as web_router
+
+if not settings.use_onnx:
+    from loguru import logger
+else:
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logger = logging.getLogger("kokoro-fastapi")
 
 
 def setup_logger():
@@ -46,40 +47,42 @@ def setup_logger():
 
 
 # Configure logger
-setup_logger()
+if not settings.use_onnx:
+    setup_logger()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for model initialization"""
+    """Lifespan context manager for model initialization.
+
+    When USE_ONNX=true the ONNX backend handles its own startup — this
+    lifespan is for the PyTorch kokoro pipeline only.
+    """
+    if settings.use_onnx:
+        yield  # ONNX app manages its own lifespan
+        return
+
     from .inference.model_manager import get_manager
     from .inference.voice_manager import get_manager as get_voice_manager
     from .services.temp_manager import cleanup_temp_files
     from .services.flashsr_service import get_flashsr_service
 
-    # Clean old temp files on startup
     await cleanup_temp_files()
 
     logger.info("Loading TTS model and voice packs...")
 
     try:
-        # Initialize managers
         model_manager = await get_manager()
         voice_manager = await get_voice_manager()
+        device, model, voicepack_count = await model_manager.initialize_with_warmup(voice_manager)
 
-        # Initialize model with warmup and get status
-        device, model, voicepack_count = await model_manager.initialize_with_warmup(
-            voice_manager
-        )
-
-        # Initialize FlashSR if enabled
         flashsr_status = "disabled"
         if settings.enable_flashsr:
             try:
                 logger.info("Initializing FlashSR audio super-resolution...")
                 flashsr_service = await get_flashsr_service()
                 if flashsr_service and flashsr_service.is_available():
-                    flashsr_status = f"enabled (24kHz -> 48kHz)"
+                    flashsr_status = "enabled (24kHz -> 48kHz)"
                     logger.info("FlashSR initialized successfully")
                 else:
                     flashsr_status = "initialization failed"
@@ -110,17 +113,15 @@ async def lifespan(app: FastAPI):
     if device == "mps":
         startup_msg += "\nUsing Apple Metal Performance Shaders (MPS)"
     elif device == "cuda":
+        import torch
         startup_msg += f"\nCUDA: {torch.cuda.is_available()}"
     else:
         startup_msg += "\nRunning on CPU"
     startup_msg += f"\n{voicepack_count} voice packs loaded"
     startup_msg += f"\nFlashSR Audio Super-Resolution: {flashsr_status}"
 
-    # Add web player info if enabled
     if settings.enable_web_player:
-        startup_msg += (
-            f"\n\nBeta Web Player: http://{settings.host}:{settings.port}/web/"
-        )
+        startup_msg += f"\n\nBeta Web Player: http://{settings.host}:{settings.port}/web/"
         startup_msg += f"\nor http://localhost:{settings.port}/web/"
     else:
         startup_msg += "\n\nWeb Player: disabled"
@@ -131,44 +132,60 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# Initialize FastAPI app
-app = FastAPI(
-    title=settings.api_title,
-    description=settings.api_description,
-    version=settings.api_version,
-    lifespan=lifespan,
-    openapi_url="/openapi.json",  # Explicitly enable OpenAPI schema
-)
+# Initialize FastAPI app — switch backends based on USE_ONNX
+if settings.use_onnx:
+    from .onnx_server import create_onnx_app
+    app = create_onnx_app()
+    logger.info("Backend: kokoro-onnx (ONNX Runtime)")
+else:
+    import torch
 
-# Add CORS middleware if enabled
-if settings.cors_enabled:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+    from .routers.debug import router as debug_router
+    from .routers.development import router as dev_router
+    from .routers.openai_compatible import router as openai_router
+    from .routers.web_player import router as web_router
+
+    app = FastAPI(
+        title=settings.api_title,
+        description=settings.api_description,
+        version=settings.api_version,
+        lifespan=lifespan,
+        openapi_url="/openapi.json",
     )
 
-# Include routers
-app.include_router(openai_router, prefix="/v1")
-app.include_router(dev_router)  # Development endpoints
-app.include_router(debug_router)  # Debug endpoints
-if settings.enable_web_player:
-    app.include_router(web_router, prefix="/web")  # Web player static files
+    # Add CORS middleware if enabled
+    if settings.cors_enabled:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+    # Include routers
+    app.include_router(openai_router, prefix="/v1")
+    app.include_router(dev_router)
+    app.include_router(debug_router)
+    if settings.enable_web_player:
+        app.include_router(web_router, prefix="/web")
+
+    logger.info("Backend: kokoro (PyTorch)")
 
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
+# Health check endpoint (only for PyTorch backend; ONNX has its own)
+if not settings.use_onnx:
+
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint"""
+        return {"status": "healthy"}
 
 
-@app.get("/v1/test")
-async def test_endpoint():
-    """Test endpoint to verify routing"""
-    return {"status": "ok"}
+    @app.get("/v1/test")
+    async def test_endpoint():
+        """Test endpoint to verify routing"""
+        return {"status": "ok"}
 
 
 if __name__ == "__main__":

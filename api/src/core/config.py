@@ -18,6 +18,20 @@ class Settings(BaseSettings):
         None  # If set, overrides the first letter of voice name, though api call param still takes precedence
     )
     use_gpu: bool = False  # Whether to use GPU acceleration if available
+    use_onnx: bool = False  # Use kokoro-onnx (ONNX Runtime) instead of PyTorch kokoro
+
+    # ── ONNX backend settings ─────────────────────────────────────────────────
+    onnx_model_path: str = "kokoro-v1.0.onnx"       # Path to ONNX model file
+    onnx_voices_path: str = "voices-v1.0.bin"       # Path to voices file
+    onnx_gpu_device_id: int = 0                     # GPU device ID for CUDA provider
+    onnx_max_concurrent: int = 4                    # Max simultaneous inference calls
+    onnx_inference_threads: int = 4                 # Thread pool size
+    onnx_intra_threads: int = 5                     # ONNX intra-op threads
+    onnx_inter_threads: int = 2                     # ONNX inter-op threads
+    onnx_warmup_text: str = "Kokoro is ready."      # Warmup text
+    onnx_warmup_voice: str = "af_heart"             # Warmup voice name
+    onnx_execution_mode: str = "sequential"         # ONNX execution mode (sequential|parallel)
+    onnx_max_request_bytes: int = 1_048_576         # Max request body size (default 1 MiB)
     device_type: str | None = (
         "cpu"  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
     )

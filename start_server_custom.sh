@@ -4,6 +4,8 @@ PROJECT_ROOT=$(pwd)
 
 # Set environment variables
 export USE_GPU=false
+# Set USE_ONNX=true for the lightweight ONNX Runtime backend (kokoro-onnx).
+# Leave false (default) for the full PyTorch kokoro pipeline with FlashSR.
 export USE_ONNX=false
 export PYTHONPATH=$PROJECT_ROOT:$PROJECT_ROOT/api
 export MODEL_DIR=$PROJECT_ROOT/api/src/models
