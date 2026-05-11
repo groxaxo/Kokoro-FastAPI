@@ -1,5 +1,11 @@
-import torch
+import os
 from pydantic_settings import BaseSettings
+
+try:
+    import torch
+    _HAS_TORCH = True
+except ImportError:
+    _HAS_TORCH = False
 
 
 class Settings(BaseSettings):
@@ -92,7 +98,9 @@ class Settings(BaseSettings):
         if self.device_type:
             return self.device_type
 
-        # Auto-detect device
+        if not _HAS_TORCH:
+            return "cpu"
+
         if torch.backends.mps.is_available():
             return "mps"
         elif torch.cuda.is_available():
