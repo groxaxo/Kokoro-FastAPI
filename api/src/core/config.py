@@ -1,11 +1,4 @@
-import os
 from pydantic_settings import BaseSettings
-
-try:
-    import torch
-    _HAS_TORCH = True
-except ImportError:
-    _HAS_TORCH = False
 
 
 class Settings(BaseSettings):
@@ -23,8 +16,7 @@ class Settings(BaseSettings):
     default_voice_code: str | None = (
         None  # If set, overrides the first letter of voice name, though api call param still takes precedence
     )
-    use_gpu: bool = False  # Whether to use GPU acceleration if available
-    use_onnx: bool = False  # Use kokoro-onnx (ONNX Runtime) instead of PyTorch kokoro
+    use_gpu: bool = False  # Whether to request GPU acceleration if available
 
     # ── ONNX backend settings ─────────────────────────────────────────────────
     onnx_model_path: str = "kokoro-v1.0.onnx"       # Path to ONNX model file
@@ -38,74 +30,14 @@ class Settings(BaseSettings):
     onnx_warmup_voice: str = "af_heart"             # Warmup voice name
     onnx_execution_mode: str = "sequential"         # ONNX execution mode (sequential|parallel)
     onnx_max_request_bytes: int = 1_048_576         # Max request body size (default 1 MiB)
-    device_type: str | None = (
-        "cpu"  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
-    )
-    allow_local_voice_saving: bool = (
-        False  # Whether to allow saving combined voices locally
-    )
-
-    # Container absolute paths
-    model_dir: str = "/app/api/src/models"  # Absolute path in container
-    voices_dir: str = "/app/api/src/voices/v1_0"  # Absolute path in container
-
-    # Audio Settings
     sample_rate: int = 24000
-    default_volume_multiplier: float = 1.0
-    # FlashSR Settings
-    enable_flashsr: bool = True  # Enable audio super-resolution (24kHz -> 48kHz)
-    flashsr_output_sample_rate: int = 48000  # Output sample rate after super-resolution
-    # Text Processing Settings
-    target_min_tokens: int = 175  # Target minimum tokens per chunk
-    target_max_tokens: int = 250  # Target maximum tokens per chunk
-    absolute_max_tokens: int = 450  # Absolute maximum tokens per chunk
-    advanced_text_normalization: bool = True  # Preproesses the text before misiki
-    voice_weight_normalization: bool = (
-        True  # Normalize the voice weights so they add up to 1
-    )
-
-    gap_trim_ms: int = (
-        1  # Base amount to trim from streaming chunk ends in milliseconds
-    )
-    dynamic_gap_trim_padding_ms: int = 410  # Padding to add to dynamic gap trim
-    dynamic_gap_trim_padding_char_multiplier: dict[str, float] = {
-        ".": 1,
-        "!": 0.9,
-        "?": 1,
-        ",": 0.8,
-    }
 
     # Web Player Settings
     enable_web_player: bool = True  # Whether to serve the web player UI
     web_player_path: str = "web"  # Path to web player static files
-    cors_origins: list[str] = ["*"]  # CORS origins for web player
-    cors_enabled: bool = True  # Whether to enable CORS
-
-    # Temp File Settings for WEB Ui
-    temp_file_dir: str = "api/temp_files"  # Directory for temporary audio files (relative to project root)
-    max_temp_dir_size_mb: int = 2048  # Maximum size of temp directory (2GB)
-    max_temp_dir_age_hours: int = 1  # Remove temp files older than 1 hour
-    max_temp_dir_count: int = 3  # Maximum number of temp files to keep
 
     class Config:
         env_file = ".env"
-
-    def get_device(self) -> str:
-        """Get the appropriate device based on settings and availability"""
-        if not self.use_gpu:
-            return "cpu"
-
-        if self.device_type:
-            return self.device_type
-
-        if not _HAS_TORCH:
-            return "cpu"
-
-        if torch.backends.mps.is_available():
-            return "mps"
-        elif torch.cuda.is_available():
-            return "cuda"
-        return "cpu"
 
 
 settings = Settings()

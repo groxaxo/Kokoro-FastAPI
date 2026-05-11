@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="description" content="Kokoro FastAPI — OpenAI-compatible TTS server. ONNX Runtime + PyTorch backends, 54 voices, real-time generation." />
+<meta name="description" content="Kokoro FastAPI — OpenAI-compatible TTS server powered by ONNX Runtime, 54 voices, and real-time generation." />
 <meta name="theme-color" content="#0a0a0a" />
 <title>Kokoro FastAPI</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -327,21 +327,21 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 28px; }
   <div class="container hero-inner">
     <div class="eyebrow">
       <span class="dot"></span>
-      <span>ONNX Runtime + PyTorch backends · 54 voices</span>
+      <span>ONNX Runtime · 54 voices</span>
     </div>
     <h1 class="hero-title">
       OpenAI-compatible<br/>
       <span class="ital">text-to-speech.</span>
     </h1>
     <p class="hero-sub">
-      Kokoro FastAPI serves production TTS via /v1/audio/speech. Choose the lightweight ONNX backend or the full PyTorch pipeline with FlashSR upscaling.
+      Kokoro FastAPI serves production TTS through a single ONNX Runtime pipeline with fast startup, low latency, and a simple OpenAI-compatible API.
     </p>
 
     <div class="hero-stats">
       <div class="stat"><div class="stat-num">54</div><div class="stat-label">Voices</div></div>
       <div class="stat"><div class="stat-num">24kHz</div><div class="stat-label">Native sample rate</div></div>
       <div class="stat"><div class="stat-num">23x</div><div class="stat-label">Faster than realtime</div></div>
-      <div class="stat"><div class="stat-num">2</div><div class="stat-label">Backends (ONNX / PyTorch)</div></div>
+      <div class="stat"><div class="stat-num">ONNX</div><div class="stat-label">Runtime</div></div>
     </div>
   </div>
 </section>
@@ -412,7 +412,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 28px; }
           <li>POST /v1/audio/speech — generate audio from text</li>
           <li>GET /v1/voices — list all 54 available voices</li>
           <li>GET /health — provider, thread count, GPU status</li>
-          <li>USE_ONNX=true — switch to lightweight ONNX backend</li>
+          <li>Single ONNX Runtime pathway for API and web playback</li>
         </ul>
       </div>
 
@@ -449,16 +449,21 @@ let audioContext = null;
 
 // ── LOAD VOICES ──
 async function loadVoices() {
+  const sel = document.getElementById('voice-select');
   try {
     const res = await fetch(`${BASE}/v1/voices`);
-    const data = await res.json();
-    const sel = document.getElementById('voice-select');
-    data.data.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id; opt.textContent = v.name;
-      sel.appendChild(opt);
-    });
-    if (data.data.length > 0) sel.value = 'af_heart';
+    if (res.ok) {
+      const data = await res.json();
+      if (data.data && Array.isArray(data.data)) {
+        data.data.forEach(v => {
+          const o = document.createElement('option');
+          o.value = v.id || v.name;
+          o.textContent = v.name || v.id;
+          sel.appendChild(o);
+        });
+        if (data.data.length > 0) sel.value = 'af_heart';
+      }
+    }
   } catch (e) {
     showStatus('Failed to load voices: ' + e.message, 'error');
   }
@@ -495,7 +500,7 @@ genBtn.addEventListener('click', async () => {
     const res = await fetch(`${BASE}/v1/audio/speech`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'kokoro-v1.0', input: text, voice, speed, response_format: fmt }),
+      body: JSON.stringify({ model: 'kokoro', input: text, voice, speed, response_format: fmt }),
     });
 
     if (!res.ok) {

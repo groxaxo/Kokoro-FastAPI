@@ -26,24 +26,14 @@ share/python-wheels/
 MANIFEST
 
 # Models (too large for GitHub)
+kokoro-v1.0.onnx
+voices-v1.0.bin
 api/src/models/v1_0/*.pth
 api/src/models/flashsr/onnx/*.onnx
 
 # Data & Temp
 api/temp_files/*
 output/*
-examples/audio_samples/*.opus
-!examples/audio_samples/english_benefits_48khz.opus
-!examples/audio_samples/spanish_benefits_48khz.opus
-!examples/audio_samples/english_benefits_24khz.opus
-!examples/audio_samples/spanish_benefits_24khz.opus
-!examples/audio_samples/english_technical_48khz.opus
-!examples/audio_samples/english_technical_24khz.opus
-!examples/audio_samples/english_jokes_48khz.opus
-!examples/audio_samples/english_jokes_24khz.opus
-!examples/audio_samples/spanish_jokes_48khz.opus
-!examples/audio_samples/spanish_jokes_24khz.opus
-
 # Logs
 *.log
 server.log

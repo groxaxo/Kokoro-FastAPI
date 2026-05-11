@@ -1,19 +1,4 @@
-"""Kokoro ONNX backend — lightweight, GPU-auto-detecting TTS server.
-
-When USE_ONNX=true, this module replaces the PyTorch kokoro pipeline with
-kokoro-onnx + ONNX Runtime, providing an OpenAI-compatible /v1/audio/speech
-endpoint with semaphore-gated concurrency and per-request tracing.
-
-Features vs the PyTorch backend:
-  - No torch dependency (ONNX Runtime only)
-  - Automatic CUDA provider detection
-  - Configurable ONNX threading (intra/inter-op)
-  - Request-ID logging middleware
-  - Request body size limit enforcement
-  - Case-insensitive voice name normalization
-  - Stream compatibility field (accepted, ignored)
-  - Graceful executor shutdown (wait=True)
-"""
+"""Kokoro ONNX server with OpenAI-compatible speech and voice endpoints."""
 
 import asyncio
 import ctypes

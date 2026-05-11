@@ -6,36 +6,25 @@ import tomli
 
 
 def extract_dependency_info():
-    """Extract version for kokoro and misaki from pyproject.toml"""
+    """Extract version for kokoro-onnx from pyproject.toml."""
     with open("pyproject.toml", "rb") as f:
         pyproject = tomli.load(f)
 
     deps = pyproject["project"]["dependencies"]
     info = {}
-    kokoro_found = False
-    misaki_found = False
+    onnx_found = False
 
     for dep in deps:
-        # Match kokoro==version
-        kokoro_match = re.match(r"^kokoro==(.+)$", dep)
-        if kokoro_match:
-            info["kokoro"] = {"version": kokoro_match.group(1)}
-            kokoro_found = True
+        onnx_match = re.match(r"^kokoro-onnx(?:[<>=!~]=+)?(.+)$", dep)
+        if onnx_match:
+            info["kokoro-onnx"] = {"version": onnx_match.group(1)}
+            onnx_found = True
 
-        # Match misaki[...] ==version or misaki==version
-        misaki_match = re.match(r"^misaki(?:\[.*?\])?==(.+)$", dep)
-        if misaki_match:
-            info["misaki"] = {"version": misaki_match.group(1)}
-            misaki_found = True
-
-        # Stop if both found
-        if kokoro_found and misaki_found:
+        if onnx_found:
             break
 
-    if not kokoro_found:
-        raise ValueError("Kokoro version not found in pyproject.toml dependencies")
-    if not misaki_found:
-        raise ValueError("Misaki version not found in pyproject.toml dependencies")
+    if not onnx_found:
+        raise ValueError("kokoro-onnx version not found in pyproject.toml dependencies")
 
     return info
 
@@ -101,13 +90,11 @@ def update_readme_badges(passed_tests, coverage_percentage, dep_info):
             content,
         )
 
-    # Update misaki badge
-    if "misaki" in dep_info:
-        # Find badge like misaki-v0.9.3::abcdefg-B8860B or misaki-v0.9.3-B8860B
-        misaki_version = dep_info["misaki"]["version"]
+    if "kokoro-onnx" in dep_info:
+        onnx_version = dep_info["kokoro-onnx"]["version"]
         content = re.sub(
-            r"(!\[Misaki\]\(https://img\.shields\.io/badge/misaki-)[^)-]+(-B8860B\))",
-            lambda m: f"{m.group(1)}{misaki_version}{m.group(2)}",
+            r"(!\[Kokoro ONNX\]\(https://img\.shields\.io/badge/kokoro--onnx-)[^)-]+(-green\))",
+            lambda m: f"{m.group(1)}{onnx_version}{m.group(2)}",
             content,
         )
 
@@ -129,8 +116,8 @@ def main():
         print(f"- Coverage: {coverage_percentage}%")
         if "kokoro" in dep_info:
             print(f"- Kokoro: {dep_info['kokoro']['version']}")
-        if "misaki" in dep_info:
-            print(f"- Misaki: {dep_info['misaki']['version']}")
+        if "kokoro-onnx" in dep_info:
+            print(f"- kokoro-onnx: {dep_info['kokoro-onnx']['version']}")
     else:
         print("Failed to update badges")
 
