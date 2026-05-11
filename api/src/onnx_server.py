@@ -339,4 +339,12 @@ def create_onnx_app() -> FastAPI:
             "execution_mode": _ONNX_EXECUTION_MODE,
         }
 
+    # ── Web player static files ────────────────────────────────────────────────
+    from fastapi.staticfiles import StaticFiles
+    from pathlib import Path as _Path
+
+    _web_dir = _Path(__file__).resolve().parent.parent.parent / "web"
+    if _web_dir.is_dir():
+        app.mount("/web", StaticFiles(directory=str(_web_dir), html=True), name="web")
+
     return app
